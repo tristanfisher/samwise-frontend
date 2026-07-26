@@ -1,0 +1,41 @@
+#
+# Dockerfile_local is for running on local development
+# Dockerfile is for dev/prod building for running off localhost.
+#
+# Dockerfile_local is set up for debugging, not efficiency
+#
+
+# -- OS baseline -- #
+# keep in sync with Dockerfile, Dockerfile_typescript
+FROM node:26-alpine AS base_frontend
+WORKDIR /opt/project
+
+# -- local tls certs -- #
+FROM base_frontend AS code_dependencies
+WORKDIR /opt/project
+# these must be created first - deps_workstation/local_tls.sh exists
+COPY ./deps_workstation/tls/server.crt /opt/project/deps_workstation/tls/server.crt
+COPY ./deps_workstation/tls/server.key /opt/project/deps_workstation/tls/server.key
+COPY ./deps_workstation/tls/server.pem /opt/project/deps_workstation/tls/server.pem
+
+# COPY in package management files
+# this step is intentionally separate from install to force layer building on changes
+FROM code_dependencies AS dependency_list
+RUN apk add yarn
+WORKDIR /opt/project
+COPY ./package.json /opt/project/
+
+# Install dependencies, which change far less often than code
+FROM dependency_list AS install_dependencies
+WORKDIR /opt/project
+# NODE_ENV gets passed at build stage. envvar is used by both dependencies and code building
+ARG NODE_ENV
+ENV NODE_ENV=$NODE_ENV
+ARG REACT_APP_NODE_ENV
+ENV REACT_APP_NODE_ENV=$REACT_APP_NODE_ENV
+
+# Run node monitor / hot reloader for dev env
+# our code is mounted in via docker-compose
+FROM install_dependencies AS hot_reload
+WORKDIR /opt/project
+# ready for docker compose, which handles reloading and building our code by its entry command

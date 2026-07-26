@@ -1,0 +1,26 @@
+[req]
+default_bits       = 2048
+distinguished_name = req_distinguished_name
+req_extensions     = req_ext
+x509_extensions    = req_ext
+prompt             = no
+
+
+[req_distinguished_name]
+C  = US
+ST = New Hampshire
+L  = Freedom
+O  = TristanCorp
+CN = localhost
+
+[req_ext]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = server.example.com
+# - localhost can return IPv4 or IPv6 addresses.  https://datatracker.ietf.org/doc/html/draft-west-let-localhost-be-localhost-06
+IP.1  = 192.168.1.100
+# Standard IPv6 format
+IP.2  = 2001:db8:85a3::8a2e:370:7334
+# Localhost IPv6
+IP.3  = ::1

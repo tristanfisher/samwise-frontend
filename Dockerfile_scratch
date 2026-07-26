@@ -1,0 +1,9 @@
+FROM node:26-alpine
+
+# webstorm expects /opt/project for inspection/debugging/execution
+WORKDIR /opt/project
+
+# ts-node for scratch files
+RUN npm install typescript ts-node
+
+ENTRYPOINT ["npx", "ts-node", "scratch.ts"]

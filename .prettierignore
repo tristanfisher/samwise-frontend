@@ -1,0 +1,6 @@
+# Ignore Artifacts
+build
+node_modules
+.github
+# Ignore generated code
+src/gen_ts

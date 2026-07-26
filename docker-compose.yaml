@@ -1,0 +1,64 @@
+# named volumes are initialized with the contents of the image at that location.
+# host volumes get an overlay, which is useless for node_modules sharing from the container.
+#
+# tl;dr named volume allows us to get the node_modules dir from the image layer.
+# this is particularly useful for code inspection/resolution for our IDE
+#
+# the "device" target must exist or a readdirent error is thrown, such as
+#   > Error response from daemon: readdirent /var/lib/docker/volumes/frontend_mnt_node_modules/_data: no such file or directory
+#     https://github.com/moby/moby/blob/de90b5e9adc1220482ea35d2de25ec6d646b6922/pkg/archive/changes_linux.go#L242
+volumes:
+  mnt_node_modules:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./node_modules
+
+services:
+  samwise-frontend:
+    build:
+      dockerfile: Dockerfile_local
+      context: .
+      labels:
+        - 'frontend'
+        - 'samwise'
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 7G
+    # nodemon calls
+    # INLINE_RUNTIME_CHUNK=false IMAGE_INLINE_SIZE_LIMIT=0 node scripts/start.js`
+    #
+    # vite maintains reloading with the proper vite config
+    # unsure how to pass the host argument to bind to anything via env var
+    command: npm run dev -- --host 0.0.0.0
+    volumes:
+      # https://stackoverflow.com/questions/38425996/docker-compose-volume-on-node-modules-but-is-empty
+      # this volume mount is bidirectional.
+      # do NOT mount via webstorm's config or this will be stomped on.
+      # order is: /host/dir:/container/dir
+      #
+      # mounts pwd to /opt/project
+      - .:/opt/project
+      - mnt_node_modules:/opt/project/node_modules
+      # this creates an anonymous mount
+      # - /opt/project/node_modules/
+    ports:
+      - '6060:6060' # typescript linter
+      - '3000:3000' # node http+websocket server
+      - '5173:5173' # vite server
+    environment:
+      # vite pulls .env files
+      - NODE_ENV=development
+      - REACT_APP_NODE_ENV=development
+      - REACT_APP_BFF_HOST='https://localhost:2110'
+      - TLS_CRT_FILE='/opt/project/deps_workstation/tls/server.crt'
+      - TLS_KEY_FILE='/opt/project/deps_workstation/tls/server.key'
+      - TLS_PEM_FILE='/opt/project/deps_workstation/tls/server.pem'
+
+# see samwise's backend networks
+networks:
+  samwise_network:
+    external: true
